@@ -6,22 +6,36 @@
 
 <h3>Create Cookie</h3>
 
-<input type="text" class="form-control btn-outline-primary m-auto" @bind="cookie" readonly />
+<input type="text" class="form-control m-auto" @bind="cookieInput"/>
 
 <button class="btn btn-primary" @onclick="Create">Create Cookie</button>
 
 @code {
+    //kullanicidan alinan input
+    private string cookieInput = "";
+
+    //son cookie degeri
     private string cookie = "";
 
-    private void Create()
+    private async Task Create()
     {
-        //cookie olustur.
-        cookie = $"Cookie_{Guid.NewGuid()}";
+        if (string.IsNullOrEmpty(cookieInput))
+        {
+            cookie = $"Cookie_{Guid.NewGuid()}"; //text alani bossa
+        }
+        else
+        {
+            cookie = $"{cookieInput}_{Guid.NewGuid()}";
+        }
 
-        // cookie ekle.
+        // cookie gecerlilik suresi
         var expiration = DateTime.UtcNow.AddMinutes(10).ToString("R");
 
-        //js ile ekle.
-        JS.InvokeVoidAsync("setCookie", "myCookie", cookie, expiration);
+        // JS ile cookie oluştur.
+        await JS.InvokeVoidAsync("setCookie", "myCookie", cookie, expiration);
+        cookieInput = "";
+
+        // popup goster.
+        await JS.InvokeVoidAsync("showSuccessPopup", "Cookie başarıyla oluşturuldu!");
     }
 }

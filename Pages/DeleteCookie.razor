@@ -25,6 +25,7 @@
         await JS.InvokeVoidAsync("deleteCookie", "myCookie");
         cookie = "";
 
+        //pop-up cikar.
         await JS.InvokeVoidAsync("showSuccessPopup", "Cookie deleted successfully!");
     }
 }

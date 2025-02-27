@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Destaj")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+191c7f09cbe7697dcecbb7e6553da39c46701c2e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+97e86cccc248ee729af2f60be4f315b4c1a36507")]
 [assembly: System.Reflection.AssemblyProductAttribute("Destaj")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Destaj")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
