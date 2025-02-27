@@ -1,0 +1,19 @@
+﻿@page "/getcookie"
+
+@inject Microsoft.JSInterop.IJSRuntime JS
+
+<PageTitle>Get Cookie</PageTitle>
+
+<h3>Get Cookie</h3>
+
+<input type="text" class="form-control btn-outline-primary m-auto" @bind="cookie" readonly />
+
+@code {
+    private string cookie = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        //Js ten cookie al.
+        cookie = await JS.InvokeAsync<string>("getCookie", "myCookie") ?? "No Cookie Found";
+    }
+}

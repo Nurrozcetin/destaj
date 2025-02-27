@@ -1,0 +1,27 @@
+﻿@page "/"
+
+@inject Microsoft.JSInterop.IJSRuntime JS
+
+<PageTitle>Create Cookie</PageTitle>
+
+<h3>Create Cookie</h3>
+
+<input type="text" class="form-control btn-outline-primary m-auto" @bind="cookie" readonly />
+
+<button class="btn btn-primary" @onclick="Create">Create Cookie</button>
+
+@code {
+    private string cookie = "";
+
+    private void Create()
+    {
+        //cookie olustur.
+        cookie = $"Cookie_{Guid.NewGuid()}";
+
+        // cookie ekle.
+        var expiration = DateTime.UtcNow.AddMinutes(10).ToString("R");
+
+        //js ile ekle.
+        JS.InvokeVoidAsync("setCookie", "myCookie", cookie, expiration);
+    }
+}

@@ -1,0 +1,30 @@
+﻿@page "/deletecookie"
+
+@inject Microsoft.JSInterop.IJSRuntime JS
+
+<PageTitle>Delete Cookie</PageTitle>
+
+<h3>Delete Cookie</h3>
+
+<input type="text" class="form-control btn-outline-danger m-auto" @bind="cookie" readonly />
+
+<button class="btn btn-danger mt-2" @onclick="Delete">Delete Cookie</button>
+
+
+@code {
+    private string cookie = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        //Js ten cookie al.
+        cookie = await JS.InvokeAsync<string>("getCookie", "myCookie") ?? "No Cookie Found";
+    }
+    private async Task Delete()
+    {
+        //js ile sil.
+        await JS.InvokeVoidAsync("deleteCookie", "myCookie");
+        cookie = "";
+
+        await JS.InvokeVoidAsync("showSuccessPopup", "Cookie deleted successfully!");
+    }
+}

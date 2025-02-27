@@ -26,16 +26,16 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ291bnRlci5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/210601024/source/repos/Destaj/Pages/FetchData.razor]
-build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmV0Y2hEYXRhLnJhem9y
+[C:/Users/210601024/source/repos/Destaj/Pages/CreateCookie.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ3JlYXRlQ29va2llLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/210601024/source/repos/Destaj/Pages/Index.razor]
-build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSW5kZXgucmF6b3I=
+[C:/Users/210601024/source/repos/Destaj/Pages/DeleteCookie.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRGVsZXRlQ29va2llLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[C:/Users/210601024/source/repos/Destaj/Shared/SurveyPrompt.razor]
-build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXFN1cnZleVByb21wdC5yYXpvcg==
+[C:/Users/210601024/source/repos/Destaj/Pages/GetCookie.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcR2V0Q29va2llLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
 [C:/Users/210601024/source/repos/Destaj/_Imports.razor]
