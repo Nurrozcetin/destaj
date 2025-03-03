@@ -1,41 +1,123 @@
 ﻿@page "/"
-
 @inject Microsoft.JSInterop.IJSRuntime JS
+@implements IDisposable //bellek yonetimi icin kullanilan kaynaklarin belli bir araliktan sonra silinmesini saglar.
 
 <PageTitle>Create Cookie</PageTitle>
-
 <h3>Create Cookie</h3>
-
-<input type="text" class="form-control m-auto" @bind="cookieInput"/>
-
-<button class="btn btn-primary" @onclick="Create">Create Cookie</button>
+<label>Cookie İsmi:</label>
+<input type="text" class="form-control mt-3 mb-3" @bind="cookieName" placeholder="Cookie ismi giriniz" />
+<label>Cookie Değeri:</label>
+<input type="text" class="form-control mt-3 mb-3" @bind="cookieValue" placeholder="Cookie değeri giriniz" />
+<button class="btn btn-primary mt-2" @onclick="Create">Create Cookie</button>
 
 @code {
-    //kullanicidan alinan input
-    private string cookieInput = "";
+    private string cookieName = "";
+    private string cookieValue = "";
+    private DotNetObjectReference<CreateCookie> objRef;
+    private DateTime lastActivityTime;
+    private bool isJsInteropReady = false;
 
-    //son cookie degeri
-    private string cookie = "";
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            objRef = DotNetObjectReference.Create(this);
+            lastActivityTime = DateTime.UtcNow;
+            isJsInteropReady = true;
+
+            await RegisterActivityMonitoring();
+            await ValidateCookies();
+        }
+    }
+
+    private async Task RegisterActivityMonitoring()
+    {
+        if (isJsInteropReady)
+        {
+            await JS.InvokeVoidAsync("registerActivityListeners", objRef);
+        }
+    }
+
+    [JSInvokable]
+    public async Task UpdateActivity()
+    {
+        lastActivityTime = DateTime.UtcNow;
+        await UpdateCookieExpiration();
+    }
+
+    private async Task UpdateCookieExpiration()
+    {
+        if (!isJsInteropReady) return;
+
+        var allCookiesJson = await JS.InvokeAsync<string>("getAllCookies");
+
+        if (!string.IsNullOrEmpty(allCookiesJson))
+        {
+            var allCookies = allCookiesJson.Split(';');
+
+            foreach (var cookieItem in allCookies)
+            {
+                var parts = cookieItem.Split('=');
+                if (parts.Length >= 2)
+                {
+                    var name = parts[0].Trim();
+                    var value = parts[1].Trim();
+
+                    if ((DateTime.UtcNow - lastActivityTime).TotalMinutes >= 10)
+                    {
+                        await JS.InvokeVoidAsync("deleteCookie", name);
+                    }
+                    else
+                    {
+                        var expiration = DateTime.UtcNow.AddMinutes(1).ToString("R");
+                        await JS.InvokeVoidAsync("setCookie", name, value, expiration);
+                    }
+                }
+            }
+        }
+    }
+
+    private async Task ValidateCookies()
+    {
+        if (!isJsInteropReady) return;
+
+        var allCookiesJson = await JS.InvokeAsync<string>("getAllCookies");
+
+        if (!string.IsNullOrEmpty(allCookiesJson))
+        {
+            var allCookies = allCookiesJson.Split(';');
+
+            foreach (var cookieItem in allCookies)
+            {
+                var parts = cookieItem.Split('=');
+                if (parts.Length >= 2)
+                {
+                    var name = parts[0].Trim();
+                    if ((DateTime.UtcNow - lastActivityTime).TotalMinutes >= 1)
+                    {
+                        await JS.InvokeVoidAsync("deleteCookie", name);
+                    }
+                }
+            }
+        }
+    }
 
     private async Task Create()
     {
-        if (string.IsNullOrEmpty(cookieInput))
+        if (string.IsNullOrEmpty(cookieName) || string.IsNullOrEmpty(cookieValue))
         {
-            cookie = $"Cookie_{Guid.NewGuid()}"; //text alani bossa
+            await JS.InvokeVoidAsync("showErrorPopup", "Lütfen tüm alanları doldurunuz!");
+            return;
         }
-        else
-        {
-            cookie = $"{cookieInput}_{Guid.NewGuid()}";
-        }
-
-        // cookie gecerlilik suresi
-        var expiration = DateTime.UtcNow.AddMinutes(10).ToString("R");
-
-        // JS ile cookie oluştur.
-        await JS.InvokeVoidAsync("setCookie", "myCookie", cookie, expiration);
-        cookieInput = "";
-
-        // popup goster.
+        var expiration = DateTime.UtcNow.AddMinutes(1).ToString("R");
+        await JS.InvokeVoidAsync("setCookie", cookieName, cookieValue, expiration);
+        cookieName = "";
+        cookieValue = "";
         await JS.InvokeVoidAsync("showSuccessPopup", "Cookie başarıyla oluşturuldu!");
+    }
+
+    public void Dispose()
+    {
+        objRef?.Dispose();
     }
 }

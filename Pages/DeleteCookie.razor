@@ -1,31 +1,205 @@
 ﻿@page "/deletecookie"
-
 @inject Microsoft.JSInterop.IJSRuntime JS
-
-<PageTitle>Delete Cookie</PageTitle>
+@implements IDisposable
 
 <h3>Delete Cookie</h3>
 
-<input type="text" class="form-control btn-outline-danger m-auto" @bind="cookie" readonly />
+<div class="mt-4">
+    <div class="form-group">
+        <label>Cookie İsmi:</label>
+        <input type="text" class="form-control mt-2 mb-4" @bind="cookieName" placeholder="Silinecek cookie ismini giriniz" />
+    </div>
 
-<button class="btn btn-danger mt-2" @onclick="Delete">Delete Cookie</button>
+    <button class="btn btn-danger" @onclick="Delete">Delete Cookie</button>
+</div>
 
+<div class="mt-4">
+    <h4>Mevcut Cookies</h4>
+    @if (cookies.Count == 0)
+    {
+        <div class="alert alert-info mt-3">Hiç cookie bulunamadı.</div>
+    }
+    else
+    {
+        <ul class="list-group mt-3">
+            @foreach (var cookie in cookies)
+            {
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span><strong>@cookie.Key:</strong> @cookie.Value</span>
+                    <button class="btn btn-sm btn-danger" @onclick="() => DeleteCookieByName(cookie.Key)">Sil</button>
+                </li>
+            }
+        </ul>
+    }
+</div>
 
 @code {
-    private string cookie = "";
+    private string cookieName = "";
+    private List<KeyValuePair<string, string>> cookies = new();
 
-    protected override async Task OnInitializedAsync()
+    private DotNetObjectReference<DeleteCookie> objRef;
+    private DateTime lastActivityTime;
+    private bool isJsInteropReady = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        //Js ten cookie al.
-        cookie = await JS.InvokeAsync<string>("getCookie", "myCookie") ?? "No Cookie Found";
+        if (firstRender)
+        {
+            objRef = DotNetObjectReference.Create(this);
+            lastActivityTime = DateTime.UtcNow;
+            isJsInteropReady = true;
+
+            await ValidateCookies();
+            await LoadCookies();
+            StateHasChanged();
+
+            await RegisterActivityMonitoring();
+        }
     }
+
+    private async Task RegisterActivityMonitoring()
+    {
+        if (isJsInteropReady)
+        {
+            await JS.InvokeVoidAsync("registerActivityListeners", objRef);
+        }
+    }
+
+    [JSInvokable]
+    public async Task UpdateActivity()
+    {
+        lastActivityTime = DateTime.UtcNow;
+        await UpdateCookieExpiration();
+    }
+
+    private async Task UpdateCookieExpiration()
+    {
+        if (!isJsInteropReady) return;
+
+        var allCookiesJson = await JS.InvokeAsync<string>("getAllCookies");
+
+        if (!string.IsNullOrEmpty(allCookiesJson))
+        {
+            var allCookies = allCookiesJson.Split(';');
+
+            foreach (var cookieItem in allCookies)
+            {
+                var parts = cookieItem.Split('=');
+                if (parts.Length >= 2)
+                {
+                    var name = parts[0].Trim();
+                    var value = parts[1].Trim();
+
+                    if ((DateTime.UtcNow - lastActivityTime).TotalMinutes >= 1)
+                    {
+                        await JS.InvokeVoidAsync("deleteCookie", name);
+                    }
+                    else
+                    {
+                        var expiration = DateTime.UtcNow.AddMinutes(1).ToString("R");
+                        await JS.InvokeVoidAsync("setCookie", name, value, expiration);
+                    }
+                }
+            }
+        }
+    }
+
+    private async Task ValidateCookies()
+    {
+        if (!isJsInteropReady) return;
+
+        var allCookiesJson = await JS.InvokeAsync<string>("getAllCookies");
+
+        if (!string.IsNullOrEmpty(allCookiesJson))
+        {
+            var allCookies = allCookiesJson.Split(';');
+
+            foreach (var cookieItem in allCookies)
+            {
+                var parts = cookieItem.Split('=');
+                if (parts.Length >= 2)
+                {
+                    var name = parts[0].Trim();
+                    if ((DateTime.UtcNow - lastActivityTime).TotalMinutes >= 1)
+                    {
+                        await JS.InvokeVoidAsync("deleteCookie", name);
+                    }
+                }
+            }
+        }
+    }
+
+
+    private async Task LoadCookies()
+    {
+        cookies.Clear();
+        var allCookies = await JS.InvokeAsync<string>("getAllCookies");
+
+        if (!string.IsNullOrEmpty(allCookies))
+        {
+            var cookiePairs = allCookies.Split(';');
+            foreach (var pair in cookiePairs)
+            {
+                var trimmedPair = pair.Trim();
+                var splitIndex = trimmedPair.IndexOf('=');
+                if (splitIndex > 0)
+                {
+                    var name = trimmedPair.Substring(0, splitIndex);
+
+                    var isValid = await JS.InvokeAsync<bool>("isCookieValid", name);
+                    if (isValid)
+                    {
+                        var cookieValue = await JS.InvokeAsync<string>("getCookie", name);
+                        if (!string.IsNullOrEmpty(cookieValue))
+                        {
+                            cookies.Add(new KeyValuePair<string, string>(name, cookieValue));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private async Task Delete()
     {
-        //js ile sil.
-        await JS.InvokeVoidAsync("deleteCookie", "myCookie");
-        cookie = "";
+        if (string.IsNullOrEmpty(cookieName))
+        {
+            await JS.InvokeVoidAsync("showErrorPopup", "Lütfen bir cookie ismi giriniz!");
+            return;
+        }
 
-        //pop-up cikar.
-        await JS.InvokeVoidAsync("showSuccessPopup", "Cookie deleted successfully!");
+        var cookieResult = await JS.InvokeAsync<string>("getCookie", cookieName);
+        if (string.IsNullOrEmpty(cookieResult))
+        {
+            await JS.InvokeVoidAsync("showErrorPopup", $"'{cookieName}' isimli cookie bulunamadı veya süresi dolmuş!");
+            return;
+        }
+
+        await JS.InvokeVoidAsync("deleteCookie", cookieName);
+        await JS.InvokeVoidAsync("showSuccessPopup", $"'{cookieName}' isimli cookie başarıyla silindi!");
+
+        await LoadCookies();
+
+        cookieName = "";
+    }
+
+    private async Task DeleteCookieByName(string name)
+    {
+        var isValid = await JS.InvokeAsync<bool>("isCookieValid", name);
+        if (!isValid)
+        {
+            await JS.InvokeVoidAsync("showErrorPopup", $"'{name}' isimli cookie bulunamadı veya süresi dolmuş!");
+            return;
+        }
+
+        await JS.InvokeVoidAsync("deleteCookie", name);
+        await JS.InvokeVoidAsync("showSuccessPopup", $"'{name}' isimli cookie başarıyla silindi!");
+
+        await LoadCookies();
+    }
+
+    public void Dispose()
+    {
+        objRef?.Dispose();
     }
 }

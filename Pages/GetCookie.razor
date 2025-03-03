@@ -1,19 +1,146 @@
 ﻿@page "/getcookie"
-
 @inject Microsoft.JSInterop.IJSRuntime JS
+@implements IDisposable
 
 <PageTitle>Get Cookie</PageTitle>
 
-<h3>Get Cookie</h3>
+<h3>Hoş Geldiniz, @lastCookie</h3>
 
-<input type="text" class="form-control btn-outline-primary m-auto" @bind="cookie" readonly />
+<label>Cookie İsmini Giriniz:</label>
+<input type="text" class="form-control mt-3 mb-3" @bind="cookieName" placeholder="Cookie ismini giriniz" />
+
+<button class="btn btn-primary mt-2" @onclick="Get">Get Cookie</button>
+
+<h4 class="mt-3">Sonuç: @result</h4>
 
 @code {
-    private string cookie = "";
+    private string cookieName = "";
+    private string result = "";
+    private string lastCookie = "";
 
-    protected override async Task OnInitializedAsync()
+    private DotNetObjectReference<GetCookie> objRef;
+    private DateTime lastActivityTime;
+    private bool isJsInteropReady = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        //Js ten cookie al.
-        cookie = await JS.InvokeAsync<string>("getCookie", "myCookie") ?? "No Cookie Found";
+        if (firstRender)
+        {
+            objRef = DotNetObjectReference.Create(this);
+            lastActivityTime = DateTime.UtcNow;
+            isJsInteropReady = true;
+
+            var storedCookie = await JS.InvokeAsync<string>("getLastCookie");
+
+            if (!string.IsNullOrEmpty(storedCookie))
+            {
+                lastCookie = storedCookie;
+                StateHasChanged();
+            }
+
+            await RegisterActivityMonitoring();
+            await ValidateCookies();
+        }
+    }
+
+    private async Task RegisterActivityMonitoring()
+    {
+        if (isJsInteropReady)
+        {
+            await JS.InvokeVoidAsync("registerActivityListeners", objRef);
+        }
+    }
+
+    [JSInvokable]
+    public async Task UpdateActivity()
+    {
+        lastActivityTime = DateTime.UtcNow;
+        await UpdateCookieExpiration();
+    }
+
+    private async Task UpdateCookieExpiration()
+    {
+        if (!isJsInteropReady) return;
+
+        var allCookiesJson = await JS.InvokeAsync<string>("getAllCookies");
+
+        if (!string.IsNullOrEmpty(allCookiesJson))
+        {
+            var allCookies = allCookiesJson.Split(';');
+
+            foreach (var cookieItem in allCookies)
+            {
+                var parts = cookieItem.Split('=');
+                if (parts.Length >= 2)
+                {
+                    var name = parts[0].Trim();
+                    var value = parts[1].Trim();
+
+                    if ((DateTime.UtcNow - lastActivityTime).TotalMinutes >= 1)
+                    {
+                        await JS.InvokeVoidAsync("deleteCookie", name);
+                    }
+                    else
+                    {
+                        var expiration = DateTime.UtcNow.AddMinutes(1).ToString("R");
+                        await JS.InvokeVoidAsync("setCookie", name, value, expiration);
+                    }
+                }
+            }
+        }
+    }
+
+    private async Task ValidateCookies()
+    {
+        if (!isJsInteropReady) return;
+
+        var allCookiesJson = await JS.InvokeAsync<string>("getAllCookies");
+
+        if (!string.IsNullOrEmpty(allCookiesJson))
+        {
+            var allCookies = allCookiesJson.Split(';');
+
+            foreach (var cookieItem in allCookies)
+            {
+                var parts = cookieItem.Split('=');
+                if (parts.Length >= 2)
+                {
+                    var name = parts[0].Trim();
+                    if ((DateTime.UtcNow - lastActivityTime).TotalMinutes >= 1)
+                    {
+                        await JS.InvokeVoidAsync("deleteCookie", name);
+                    }
+                }
+            }
+        }
+    }
+
+    private async Task Get()
+    {
+        if (string.IsNullOrEmpty(cookieName))
+        {
+            result = "Lütfen bir cookie ismi giriniz!";
+            return;
+        }
+
+        var cookieResult = await JS.InvokeAsync<string>("getCookie", cookieName);
+
+        if (string.IsNullOrEmpty(cookieResult))
+        {
+            result = "Bu cookie mevcut değil veya süresi dolmuş!";
+        }
+        else
+        {
+            result = cookieResult;
+            lastCookie = cookieResult; 
+                                       
+            var expiration = DateTime.UtcNow.AddMinutes(1).ToString("R");
+            await JS.InvokeVoidAsync("setCookie", cookieName, cookieResult, expiration);
+        }
+    }
+
+    public void Dispose()
+    {
+        objRef?.Dispose();
     }
 }

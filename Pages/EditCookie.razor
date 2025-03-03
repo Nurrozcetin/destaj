@@ -1,0 +1,379 @@
+﻿@page "/editcookie"
+@inject Microsoft.JSInterop.IJSRuntime JS
+@implements IDisposable
+
+<h3>Edit Ekranına Hoş Geldiniz</h3>
+
+<h3 class="text-center m-auto">Edit Cookie</h3>
+
+@if (!isLoaded)
+{
+    <div class="text-center mt-4">
+        <span class="spinner-border" role="status"></span>
+        <p>Yükleniyor...</p>
+    </div>
+}
+else
+{
+    <div class="d-flex flex-column align-items-normal gap-4 mt-4">
+        <div class="d-flex justify-content-center gap-3">
+            <input type="text" class="form-control w-75" @bind="cookieInput1" />
+            <button class="btn btn-success" @onclick='() => Add("input1", cookieInput1)'>Add Cookie</button>
+        </div>
+        <div class="d-flex justify-content-center gap-3">
+            <input type="text" class="form-control w-75" @bind="cookieInput2" />
+            <button class="btn btn-success" @onclick='() => Add("input2", cookieInput2)'>Add Cookie</button>
+        </div>
+        <div class="d-flex justify-content-center gap-3">
+            <input type="text" class="form-control w-75" @bind="cookieInput3" />
+            <button class="btn btn-success" @onclick='() => Add("input3", cookieInput3)'>Add Cookie</button>
+        </div>
+    </div>
+
+    <h4 class="text-center mt-5">Stored Cookie Data</h4>
+    <ul class="d-flex flex-column align-items-normal gap-4 mt-4">
+        @foreach (var entry in orderedInputs)
+        {
+            <li class="d-flex justify-content-center gap-3">
+                <span class="form-control-plaintext text-end" style="width: 80px;">@entry.Key:</span>
+                <input type="text" class="form-control w-75" @bind="cookieData[entry.Key]" />
+                <button class="btn btn-secondary btn-sm" @onclick='() => Edit(entry.Key)'>Edit</button>
+                <button class="btn btn-danger btn-sm" @onclick='() => Delete(entry.Key)'>Delete</button>
+            </li>
+        }
+    </ul>
+
+    <div class="mt-5 text-center">
+        <h4>Sonuç Cookie Değeri</h4>
+        <div class="alert alert-info mt-3">
+            <strong>Cookie Name:</strong> @originalCookieName<br />
+            <strong>Value:</strong> @resultCookieValue
+        </div>
+        <button class="btn btn-primary mt-3" @onclick="SaveResultCookie">Sonucu Kaydet</button>
+    </div>
+}
+
+@code {
+    private string cookieInput1 = "";
+    private string cookieInput2 = "";
+    private string cookieInput3 = "";
+
+    // Ana cookie değeri ve adı
+    private string mainCookieValue = "";
+    private string originalCookieName = "";
+
+    // Input verilerini sıralı tutacak şekilde saklayacağımız dictionary
+    private Dictionary<string, string> cookieData = new();
+
+    // Sıralamalı gösterimi sağlamak için
+    private List<KeyValuePair<string, string>> orderedInputs = new();
+
+    // Sonuç cookie'nin değeri
+    private string resultCookieValue = "";
+
+    // Sayfa yüklenme durumunu kontrol etmek için
+    private bool isLoaded = false;
+
+    // JavaScript interop için DotNetObjectReference
+    private DotNetObjectReference<EditCookie> objRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            objRef = DotNetObjectReference.Create(this);
+            try
+            {
+                await LoadData();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading data: {ex.Message}");
+
+                await Task.Delay(1000);
+                await LoadData();
+            }
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            // Ana cookie'yi al - create sayfasından oluşturulan
+            var allCookies = await JS.InvokeAsync<string>("getAllCookies");
+            if (!string.IsNullOrEmpty(allCookies))
+            {
+                var cookiePairs = allCookies.Split(';');
+                foreach (var pair in cookiePairs)
+                {
+                    var trimmedPair = pair.Trim();
+                    var splitIndex = trimmedPair.IndexOf('=');
+                    if (splitIndex > 0)
+                    {
+                        var name = trimmedPair.Substring(0, splitIndex);
+                        var value = trimmedPair.Substring(splitIndex + 1);
+
+                        // myCookie ve resultCookie hariç ilk bulunan cookie'yi ana cookie olarak al
+                        if (string.IsNullOrEmpty(originalCookieName) &&
+                            name != "myCookie" &&
+                            name != "resultCookie")
+                        {
+                            originalCookieName = name;
+                            mainCookieValue = value;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Edit verisini al
+            var storedCookie = await JS.InvokeAsync<string>("getCookie", "myCookie");
+            if (!string.IsNullOrEmpty(storedCookie))
+            {
+                try
+                {
+                    cookieData = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(storedCookie);
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    cookieData = new Dictionary<string, string>();
+                }
+            }
+
+            // Sıralı giriş listesini oluştur
+            UpdateOrderedInputs();
+
+            // Sonuç değerini oluştur
+            UpdateResultCookieValue();
+
+            // Yükleme tamamlandı
+            isLoaded = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in LoadData: {ex.Message}");
+            throw;
+        }
+    }
+
+    private void UpdateOrderedInputs()
+    {
+        orderedInputs = new List<KeyValuePair<string, string>>();
+
+        // Sırayla her bir input'a bak ve varsa listeye ekle
+        if (cookieData.ContainsKey("input1"))
+            orderedInputs.Add(new KeyValuePair<string, string>("input1", cookieData["input1"]));
+
+        if (cookieData.ContainsKey("input2"))
+            orderedInputs.Add(new KeyValuePair<string, string>("input2", cookieData["input2"]));
+
+        if (cookieData.ContainsKey("input3"))
+            orderedInputs.Add(new KeyValuePair<string, string>("input3", cookieData["input3"]));
+    }
+
+    private async Task Add(string inputKey, string inputValue)
+    {
+        if (!string.IsNullOrEmpty(inputValue))
+        {
+            try
+            {
+                var cookieResult = await JS.InvokeAsync<string>("getCookie", originalCookieName);
+                if (string.IsNullOrEmpty(cookieResult))
+                {
+                    await JS.InvokeVoidAsync("showErrorPopup", $"'{originalCookieName}' isimli cookie bulunamadı veya süresi dolmuş!");
+                    return;
+                }
+
+                // Dictionary'ye ekle
+                cookieData[inputKey] = inputValue;
+
+                // Sıralı listeyi güncelle
+                UpdateOrderedInputs();
+
+                // Cookie'yi kaydet
+                await SaveCookie();
+
+                // Sonuç değerini güncelle
+                UpdateResultCookieValue();
+
+                // Input alanını temizle
+                switch (inputKey)
+                {
+                    case "input1":
+                        cookieInput1 = "";
+                        break;
+                    case "input2":
+                        cookieInput2 = "";
+                        break;
+                    case "input3":
+                        cookieInput3 = "";
+                        break;
+                }
+
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in Add method: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task Edit(string key)
+    {
+        try
+        {
+            var cookieResult = await JS.InvokeAsync<string>("getCookie", originalCookieName);
+            if (string.IsNullOrEmpty(cookieResult))
+            {
+                await JS.InvokeVoidAsync("showErrorPopup", $"'{originalCookieName}' isimli cookie bulunamadı veya süresi dolmuş!");
+                return;
+            }
+
+            if (cookieData.ContainsKey(key))
+            {
+                // Cookie'yi kaydet
+                await SaveCookie();
+
+                // Sonuç değerini güncelle
+                UpdateResultCookieValue();
+
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in Edit method: {ex.Message}");
+        }
+    }
+
+    private async Task Delete(string key)
+    {
+        try
+        {
+            var cookieResult = await JS.InvokeAsync<string>("getCookie", originalCookieName);
+            if (string.IsNullOrEmpty(cookieResult))
+            {
+                await JS.InvokeVoidAsync("showErrorPopup", $"'{originalCookieName}' isimli cookie bulunamadı veya süresi dolmuş!");
+                return;
+            }
+
+            if (cookieData.ContainsKey(key))
+            {
+                // Anahtarı sil
+                cookieData.Remove(key);
+
+                // Sıralı listeyi güncelle
+                UpdateOrderedInputs();
+
+                // Cookie'yi kaydet
+                await SaveCookie();
+
+                // Sonuç değerini güncelle
+                UpdateResultCookieValue();
+
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in Delete method: {ex.Message}");
+        }
+    }
+
+    private async Task SaveCookie()
+    {
+        try
+        {
+            var newCookieValue = System.Text.Json.JsonSerializer.Serialize(cookieData);
+            var expiration = DateTime.UtcNow.AddMinutes(1).ToString("R");
+            await JS.InvokeVoidAsync("setCookie", "myCookie", newCookieValue, expiration);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in SaveCookie method: {ex.Message}");
+        }
+    }
+
+    private void UpdateResultCookieValue()
+    {
+        try
+        {
+            // Sıra korunmalı ve her değeri göstermeliyiz
+            List<string> values = new List<string>();
+
+            // Önce ana cookie değerini ekle
+            if (!string.IsNullOrEmpty(mainCookieValue))
+            {
+                values.Add(mainCookieValue);
+            }
+
+            // Sırayla input değerlerini ekle (input1, input2, input3 sırasıyla)
+            if (cookieData.ContainsKey("input1"))
+                values.Add(cookieData["input1"]);
+
+            if (cookieData.ContainsKey("input2"))
+                values.Add(cookieData["input2"]);
+
+            if (cookieData.ContainsKey("input3"))
+                values.Add(cookieData["input3"]);
+
+            // Tüm değerleri birleştir
+            resultCookieValue = string.Join("", values);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in UpdateResultCookieValue method: {ex.Message}");
+        }
+    }
+
+    private async Task SaveResultCookie()
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(resultCookieValue) && !string.IsNullOrEmpty(originalCookieName))
+            {
+                // Ana cookie'nin geçerliliğini kontrol et
+                var cookieResult = await JS.InvokeAsync<string>("getCookie", originalCookieName);
+                if (string.IsNullOrEmpty(cookieResult))
+                {
+                    await JS.InvokeVoidAsync("showErrorPopup", $"'{originalCookieName}' isimli cookie bulunamadı veya süresi dolmuş! Sonuç kaydedilemedi.");
+                    return;
+                }
+
+                var expiration = DateTime.UtcNow.AddMinutes(1).ToString("R");
+
+                // Sonuç değerini orijinal cookie'ye kaydet
+                await JS.InvokeVoidAsync("setCookie", originalCookieName, resultCookieValue, expiration);
+
+                // myCookie'yi sil
+                await JS.InvokeVoidAsync("deleteCookie", "myCookie");
+
+                // Cookie verilerini temizle
+                cookieData.Clear();
+                orderedInputs.Clear();
+
+                // UI'ı güncelle
+                StateHasChanged();
+
+                await JS.InvokeVoidAsync("showSuccessPopup", "Sonuç değeri orijinal cookie'ye başarıyla kaydedildi ve geçici veriler temizlendi!");
+            }
+            else if (string.IsNullOrEmpty(originalCookieName))
+            {
+                // Orijinal cookie bulunamadı hatası
+                await JS.InvokeVoidAsync("showErrorPopup", "Orijinal cookie bulunamadı! Önce 'Create Cookie' sayfasında bir cookie oluşturun.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in SaveResultCookie method: {ex.Message}");
+        }
+    }
+
+    public void Dispose()
+    {
+        objRef?.Dispose();
+    }
+}
