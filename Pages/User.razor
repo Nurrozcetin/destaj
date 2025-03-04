@@ -1,6 +1,263 @@
-﻿<h3>User</h3>
+﻿@page "/"
 
-@* SAYFA TASARIMI *@
+@using Destaj.Data
+@using Destaj.Business
+@using Destaj.Data.Models
+@using System.Text.RegularExpressions
+@inject IUserService UserService
+@inject Microsoft.JSInterop.IJSRuntime JS
+
+<h3 class="text-center m-auto">User Ekranına Hoş Geldiniz</h3>
+
+<div class="d-flex flex-column align-items-normal gap-4 mt-4">
+    <div class="d-flex justify-content-center gap-3">
+        <input type="text" class="form-control w-75 @(emailError ? "is-invalid" : "")" @bind="email" placeholder="Email" />
+        @if (emailError)
+        {
+            <div class="invalid-feedback d-block">Geçerli bir email adresi giriniz</div>
+        }
+    </div>
+    <div class="d-flex justify-content-center gap-3">
+        <input type="password" class="form-control w-75 @(passwordError ? "is-invalid" : "")" @bind="password" placeholder="Password" />
+        @if (passwordError)
+        {
+            <div class="invalid-feedback d-block">Şifre alanı boş olamaz</div>
+        }
+    </div>
+    <div class="d-flex justify-content-center gap-3">
+        <input type="text" class="form-control w-75 @(firstnameError ? "is-invalid" : "")" @bind="firstname" placeholder="FirstName" />
+        @if (firstnameError)
+        {
+            <div class="invalid-feedback d-block">Ad alanı boş olamaz</div>
+        }
+    </div>
+    <div class="d-flex justify-content-center gap-3">
+        <input type="text" class="form-control w-75 @(lastnameError ? "is-invalid" : "")" @bind="lastname" placeholder="LastName" />
+        @if (lastnameError)
+        {
+            <div class="invalid-feedback d-block">Soyad alanı boş olamaz</div>
+        }
+    </div>
+    <div class="d-flex justify-content-center align-content-center gap-3">
+        @if (isEditing)
+        {
+            <button class="btn btn-primary mt-2" @onclick="UpdateUser">Update User</button>
+            <button class="btn btn-secondary mt-2" @onclick="CancelEdit">Cancel</button>
+        }
+        else
+        {
+            <button class="btn btn-success mt-2" @onclick="CreateUser">Create User</button>
+        }
+    </div>
+</div>
+
+<h3 class="text-center m-auto mt-4">Users</h3>
+
+<div class="d-flex flex-column align-items-normal gap-4 mt-4">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Password</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (users.Count == 0)
+            {
+                <tr>
+                    <td colspan="5" class="text-center">No users found</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (var user in users)
+                {
+                    <tr>
+                        <td>@user.Email</td>
+                        <td>@user.Password</td>
+                        <td>@user.FirstName</td>
+                        <td>@user.LastName</td>
+                        <td>
+                            <div class="d-flex justify-content-center align-items-center gap-2">
+                                <button class="btn btn-primary btn-sm w-100" @onclick="() => EditUser(user)">Edit</button>
+                                <button class="btn btn-danger btn-sm w-100" @onclick="() => DeleteUser(user.Id)">Delete</button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
 @code {
+    private string email = "";
+    private string password = "";
+    private string firstname = "";
+    private string lastname = "";
+    private List<Data.Models.User> users = new();
+    private bool isEditing = false;
+    private int currentUserId = 0;
 
+    // Validation flags
+    private bool emailError = false;
+    private bool passwordError = false;
+    private bool firstnameError = false;
+    private bool lastnameError = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await ListUser();
+            ClearForm();
+        }
+    }
+
+    private async Task ListUser()
+    {
+        try
+        {
+            users = await UserService.ListAllUserAsync(); 
+            StateHasChanged(); 
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading users: {ex.Message}");
+        }
+    }
+
+    private bool ValidateInputs()
+    {
+        bool isValid = true;
+
+        // Email validation
+        string emailPattern = @"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$";
+        emailError = string.IsNullOrWhiteSpace(email) || !Regex.IsMatch(email, emailPattern);
+        if (emailError) isValid = false;
+
+        // Other field validations
+        passwordError = string.IsNullOrWhiteSpace(password);
+        if (passwordError) isValid = false;
+
+        firstnameError = string.IsNullOrWhiteSpace(firstname);
+        if (firstnameError) isValid = false;
+
+        lastnameError = string.IsNullOrWhiteSpace(lastname);
+        if (lastnameError) isValid = false;
+
+        return isValid;
+    }
+
+    private async Task CreateUser()
+    {
+        if (!ValidateInputs())
+        {
+            await JS.InvokeVoidAsync("showErrorPopup", "Lütfen tüm alanları doğru şekilde doldurunuz!");
+            return;
+        }
+
+        var newUser = new Data.Models.User
+            {
+                FirstName = firstname,
+                LastName = lastname,
+                Email = email,
+                Password = password
+            };
+
+        bool success = await UserService.CreateUserAsync(newUser);
+        if (success == true)
+        {
+            await JS.InvokeVoidAsync("showSuccessPopup", "Kullanıcı başarıyla kaydedildi!");
+            await ListUser();
+            StateHasChanged();
+            ClearForm();
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("showErrorPopup", "Kullanıcı kaydedilirken bir hata oluştu!");
+        }
+    }
+
+    private async Task UpdateUser()
+    {
+        if (!ValidateInputs())
+        {
+            await JS.InvokeVoidAsync("showErrorPopup", "Lütfen tüm alanları doğru şekilde doldurunuz!");
+            return;
+        }
+
+        var updatedUser = new Data.Models.User
+            {
+                Id = currentUserId,
+                FirstName = firstname,
+                LastName = lastname,
+                Email = email,
+                Password = password
+            };
+
+        bool success = await UserService.UpdateUserAsync(updatedUser);
+        if (success)
+        {
+            await JS.InvokeVoidAsync("showSuccessPopup", "Kullanıcı başarıyla güncellendi!");
+            await ListUser();
+            ClearForm();
+        }
+        else
+        {
+            await JS.InvokeVoidAsync("showErrorPopup", "Kullanıcı güncellenirken bir hata oluştu!");
+        }
+    }
+
+    private void EditUser(Data.Models.User user)
+    {
+        currentUserId = user.Id;
+        email = user.Email;
+        password = user.Password;
+        firstname = user.FirstName;
+        lastname = user.LastName;
+        isEditing = true;
+    }
+
+    private async Task DeleteUser(int userId)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Bu kullanıcıyı silmek istediğinizden emin misiniz?");
+        if (confirmed)
+        {
+            bool success = await UserService.DeleteUserAsync(userId);
+            if (success)
+            {
+                await JS.InvokeVoidAsync("showSuccessPopup", "Kullanıcı başarıyla silindi!");
+                await ListUser();
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("showErrorPopup", "Kullanıcı silinirken bir hata oluştu!");
+            }
+        }
+    }
+
+    private void CancelEdit()
+    {
+        ClearForm();
+    }
+
+    private void ClearForm()
+    {
+        email = "";
+        password = "";
+        firstname = "";
+        lastname = "";
+        isEditing = false;
+        currentUserId = 0;
+
+        // Reset validation errors
+        emailError = false;
+        passwordError = false;
+        firstnameError = false;
+        lastnameError = false;
+    }
 }

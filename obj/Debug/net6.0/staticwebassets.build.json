@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "+YakrbZ1YKd8tKNGlOgNVIWOk/neGqrVcLOOtv6osRI=",
+  "Hash": "+iXFCRwpkWivJIFG/p4/vN2mlooFYUgzn7Ma7+OonKA=",
   "Source": "Destaj",
   "BasePath": "_content/Destaj",
   "Mode": "Default",
@@ -91,25 +91,6 @@
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "wwwroot\\css\\bootstrap\\bootstrap.min.css.map"
-    },
-    {
-      "Identity": "C:\\Users\\210601024\\source\\repos\\Destaj\\wwwroot\\css\\open-iconic\\FONT-LICENSE",
-      "SourceId": "Destaj",
-      "SourceType": "Discovered",
-      "ContentRoot": "C:\\Users\\210601024\\source\\repos\\Destaj\\wwwroot\\",
-      "BasePath": "_content/Destaj",
-      "RelativePath": "css/open-iconic/FONT-LICENSE",
-      "AssetKind": "All",
-      "AssetMode": "All",
-      "AssetRole": "Primary",
-      "AssetMergeBehavior": "PreferTarget",
-      "AssetMergeSource": "",
-      "RelatedAsset": "",
-      "AssetTraitName": "",
-      "AssetTraitValue": "",
-      "CopyToOutputDirectory": "Never",
-      "CopyToPublishDirectory": "PreserveNewest",
-      "OriginalItemSpec": "wwwroot\\css\\open-iconic\\FONT-LICENSE"
     },
     {
       "Identity": "C:\\Users\\210601024\\source\\repos\\Destaj\\wwwroot\\css\\open-iconic\\font\\css\\open-iconic-bootstrap.min.css",
@@ -224,6 +205,25 @@
       "CopyToOutputDirectory": "Never",
       "CopyToPublishDirectory": "PreserveNewest",
       "OriginalItemSpec": "wwwroot\\css\\open-iconic\\font\\fonts\\open-iconic.woff"
+    },
+    {
+      "Identity": "C:\\Users\\210601024\\source\\repos\\Destaj\\wwwroot\\css\\open-iconic\\FONT-LICENSE",
+      "SourceId": "Destaj",
+      "SourceType": "Discovered",
+      "ContentRoot": "C:\\Users\\210601024\\source\\repos\\Destaj\\wwwroot\\",
+      "BasePath": "_content/Destaj",
+      "RelativePath": "css/open-iconic/FONT-LICENSE",
+      "AssetKind": "All",
+      "AssetMode": "All",
+      "AssetRole": "Primary",
+      "AssetMergeBehavior": "PreferTarget",
+      "AssetMergeSource": "",
+      "RelatedAsset": "",
+      "AssetTraitName": "",
+      "AssetTraitValue": "",
+      "CopyToOutputDirectory": "Never",
+      "CopyToPublishDirectory": "PreserveNewest",
+      "OriginalItemSpec": "wwwroot\\css\\open-iconic\\FONT-LICENSE"
     },
     {
       "Identity": "C:\\Users\\210601024\\source\\repos\\Destaj\\wwwroot\\css\\open-iconic\\ICON-LICENSE",
